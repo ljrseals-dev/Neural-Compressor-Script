@@ -1,7 +1,7 @@
 README — Neural Compressor Training
 
 
-![Neural Compressor Artwork](/images/neural_compressor.png)
+![Neural Compressor Artwork](/images/neural_compressor.jpg)
 
 Training harness for the neural compressor. A differentiable classical compressor serves as the teacher target; the neural model is trained end-to-end to reproduce the teacher's gain curve and static parameters (threshold, ratio, attack, release).
 

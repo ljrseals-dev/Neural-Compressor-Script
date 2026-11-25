@@ -119,6 +119,9 @@ def evaluate(model, probe, loader, criterion, device):
 def config_for(args):
     return {"sample_rate": args.sample_rate, "duration": args.duration, "n_bands": 1,
             "frame": FRAME_SIZE, "dataset_contract": DATASET_CONTRACT_VERSION,
+            "seed": args.seed, "n_samples": args.n_samples, "n_val": args.n_val,
+            "n_test": args.n_test, "batch_size": args.batch_size, "lr": args.lr,
+            "stft_every": args.stft_every, "grad_clip": args.grad_clip,
             "loss_weights": {"stft": W_STFT, "curve": W_CURVE, "param": W_PARAM, "smooth": W_SMOOTH}}
 
 

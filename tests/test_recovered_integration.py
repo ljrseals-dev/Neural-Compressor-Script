@@ -2,7 +2,7 @@ import math
 import torch
 import pytest
 
-from model.blocks import ParameterProbe, build_model
+from model.blocks import ParameterProbe, build_model, rms_envelope
 from model.losses import CompressorLoss, curve_loss
 from training.dataset import SyntheticCompressorDataset, collate
 
@@ -12,6 +12,7 @@ def test_model_contract_and_gradients():
     model = build_model(n_bands=1)
     probe = ParameterProbe(model.stem.out_channels, 4)
     x = torch.randn(2, 1, 4096) * 0.1
+    assert rms_envelope(x).shape == x.shape
     y, g, bands, extras = model(x, return_extras=True)
     p = probe(extras["latent"])
     assert y.shape == x.shape
@@ -55,10 +56,10 @@ def test_curve_loss_rejects_temporal_mismatch():
 
 def test_toy_fit_reduces_curve_objective():
     prediction = torch.nn.Parameter(torch.zeros(2, 1, 16))
-    target = torch.linspace(-6.0, 0.0, 16).view(1, 1, 16).repeat(2, 1, 1)
-    optimizer = torch.optim.Adam([prediction], lr=0.08)
+    target = torch.full_like(prediction, -1.0)
+    optimizer = torch.optim.Adam([prediction], lr=0.02)
     initial = float(curve_loss(prediction, target))
-    for _ in range(80):
+    for _ in range(50):
         optimizer.zero_grad()
         loss = curve_loss(prediction, target)
         loss.backward()

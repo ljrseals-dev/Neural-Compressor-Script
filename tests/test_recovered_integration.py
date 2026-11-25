@@ -58,10 +58,10 @@ def test_toy_fit_reduces_curve_objective():
     prediction = torch.nn.Parameter(torch.zeros(2, 1, 16))
     target = torch.full_like(prediction, -1.0)
     optimizer = torch.optim.Adam([prediction], lr=0.02)
-    initial = float(curve_loss(prediction, target))
+    initial = curve_loss(prediction, target).detach().item()
     for _ in range(50):
         optimizer.zero_grad()
         loss = curve_loss(prediction, target)
         loss.backward()
         optimizer.step()
-    assert float(curve_loss(prediction, target)) < initial * 0.2
+    assert curve_loss(prediction, target).detach().item() < initial * 0.2

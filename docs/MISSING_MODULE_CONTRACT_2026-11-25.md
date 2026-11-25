@@ -6,7 +6,7 @@ Status: specification only; the three implementations are absent.
 Contracts are derived from `training/train.py` on this audit branch and the README. Dimensions or algorithms not established by those call sites are marked unknown, not guessed. No stubs or fake tensors are added. Any future temporary stub must be labeled **non-reproducible scaffold** and raise `NotImplementedError` on every functional call.
 
 ## Launch-path blocker
-The original root-level `training.train.py` did not match the README invocation `python -m training.train`, and its `parents[1]` ROOT expression resolved above the repository. On this audit branch the script has been relocated to `training/train.py`, `training/__init__.py` has been added, and `ROOT = Path(__file__).resolve().parents[1]` now resolves to the repository root. The relocation is source-verified; the launch command has not been executed because required modules are still absent. The inspected source has the `print(model.count_parameters())` and `if args.strict_semantic:` statements on separate lines; the suspected syntax error from the pasted transition is not present in the repository file.
+The original root-level `training.train.py` did not match the README invocation `python -m training.train`, and its `parents[1]` ROOT expression resolved above the repository. On this audit branch the script has been relocated to `training/train.py`, `training/__init__.py` has been added, and `ROOT = Path(__file__).resolve().parents[1]` now resolves to the repository root. The relocation is source-verified; `training/__init__.py` is present. The launch command has not been executed because required modules are still absent. Note: the script still contains `sys.path.insert(0, str(ROOT))`; this is an explicit path insertion, not an absence of `sys.path` handling. It has not been removed or runtime-tested. The inspected source has the `print(model.count_parameters())` and `if args.strict_semantic:` statements on separate lines; the suspected syntax error from the pasted transition is not present in the repository file.
 
 ## 1. model/blocks.py
 
@@ -116,7 +116,7 @@ The repository version inspected on this branch has the model-parameter `print(.
 
 ## 5. Acceptance gate
 Do not claim acceptance until:
-1. Fix entry-point filename/module path and ROOT.
+1. [x] Entry-point filename/module path and ROOT corrected on this audit branch: `training/train.py`, `training/__init__.py`, and `parents[1]` resolve consistently. Source inspection confirms the files and path expression; CLI launch/import execution remains untested because functional modules are absent.
 2. Restore real implementations (not scaffolds).
 3. Pass model shape/gradient tests, finite loss/toy-fit tests, and deterministic dataset/collate tests.
 4. Run one epoch on a tiny subset, e.g. `--epochs 1 --n-samples 8 --batch-size 2 --eval-size 4 --duration 0.05 --no-amp --num-workers 0 --stft-every 1`, after confirming minimum audio length support.
@@ -128,7 +128,7 @@ Do not claim acceptance until:
 - [x] Enumerated imported names.
 - [x] Recorded signatures and return structure visible at call sites.
 - [x] Recorded observable shapes/roles and unknown dimensions.
-- [x] Identified launch-path mismatch.
+- [x] Identified and corrected launch-path mismatch on this branch; runtime launch remains untested.
 - [ ] Restore or author real model, loss, and teacher/dataset implementations.
 - [ ] Define dataset provenance/license and deterministic splits.
 - [ ] Add and execute tests.

@@ -1,46 +1,77 @@
-# Neural Compressor Audit
+# Neural Compressor Audit — Updated Disposition
+
 Date: 2026-11-25
 Repository: `ljrseals-dev/Neural-Compressor-Script`
-Status: **architecture and teacher decision pending; no training acceptance claim**
 
-## Repository responsibility
+**Status:** recovered implementation authored, CI-verified, and awaiting review
+in [draft PR #1](https://github.com/ljrseals-dev/Neural-Compressor-Script/pull/1).
+The `main` branch has not been modified or merged.
 
-This repository is the source of truth for the neural compressor: teacher definition, deterministic audio dataset, model, losses, training entry point, checkpoints, and neural-specific tests.
+## Owner decision now recorded
 
-`ljrseals-dev/Compression-Progress-AI` is a separate repository containing heuristic/text-oriented C++ demonstration programs and their audit/benchmark material. It should **consume a later, reproducible evaluation artifact or adapter** from this repository only after both systems share a defined task, input corpus, and defensible metric. It should not host the neural model implementation or training pipeline, and the current demos are not a valid neural-compressor benchmark.
+The owner directed that the functional modules be taken from
+`ljrseals-dev/expert-lamp` and integrated into
+`ljrseals-dev/Neural-Compressor-Script`.
 
-## Teacher decision: unresolved
+The selected teacher is expert-lamp's classical single-band RMS/soft-knee
+compressor. It remains an offline target generator, not a differentiable
+teacher-training graph. The implementation is adapted to the original
+four-value forward contract; it is not represented as a byte-for-byte copy.
 
-The training script and README describe a differentiable classical compressor teacher, but the actual teacher implementation and its precise behavior have not been recovered or verified in the inspected repository content.
+## Recovered modules
 
-No choice is made yet between:
-1. **Recover the original teacher** — preferred if its source, provenance, parameterization, and intended behavior can be located and verified; or
-2. **Design a new teacher** — only with explicit approval and a separately versioned specification describing transfer function, detector, attack/release behavior, parameter ranges, gain-curve calculation, and reference tests.
+- `model/blocks.py`: dilated CNN, latent output, and `ParameterProbe`.
+- `model/losses.py`: multi-resolution STFT, curve, parameter, and smoothness
+  losses with the original Neural-Compressor-Script weights.
+- `training/dataset.py`: deterministic synthetic audio, classical teacher,
+  precompute cache, frame-aligned gain targets, and collate.
+- `training/train.py`: compatible four-value model call, explicit single-band
+  constraint, disjoint train/validation/test sample IDs, validation-selected
+  checkpoint, separate test evaluation, and strict versioned resume loading.
 
-Do not implement `SyntheticCompressorDataset`, `CompressorLoss`, or claim teacher fidelity until this decision is recorded and the teacher behavior is testable. Do not silently substitute a conventional compressor and call it the original.
+## Corrections applied
 
-## Entry point repair
+- Teacher and student gain curves now share the same 256-sample frame windows.
+  The loss rejects shape mismatches; it does not truncate unrelated time grids.
+- RMS envelope padding preserves input length for the even 512-sample window.
+- The model rejects `n_bands != 1` because the recovered teacher has only one
+  gain target. No unsupported multi-band head is invented.
+- Resume loading requires `weights_only=True`; unrestricted
+  `weights_only=False` fallback is removed.
+- Test metrics are computed from the checkpoint selected on validation data.
+- `semantic_postcheck` remains unsupported and `--strict-semantic` fails
+  explicitly rather than silently assuming the missing Harmonia function.
 
-The prior root-level `training.train.py` filename did not match the documented `python -m training.train` invocation. It also calculated ROOT as the parent of the repository.
+## Verification evidence
 
-The audit branch now places the entry point at `training/train.py`, adds `training/__init__.py`, and removes the root-level file. From that location, `Path(__file__).resolve().parents[1]` resolves to the repository root, so the existing module invocation and ROOT calculation are aligned.
+GitHub Actions on `ec3daefb27f4b8d02d3a00731bd77a8db1eaf22e` passed:
 
-This is a source-layout correction only. It does not make training runnable: `model.blocks`, `model.losses`, and `training.dataset` still require real implementations.
+- Python 3.11 syntax compilation.
+- 6 integration tests, including model gradient flow, multiple sample rates,
+  precompute equivalence, frame alignment, mismatch rejection, and toy-fit loss
+  reduction.
+- One-epoch CPU smoke with 8 train, 4 validation, and 4 test samples.
+- A second identical run with exact matching split IDs, histories,
+  model/probe weights, optimizer/scheduler/scaler states, validation metric,
+  and test metrics.
 
-## Implementation order and gates
+This verifies a small functional path and repeatability on the CI runner. It
+does **not** establish convergence, generalization, perceptual quality, or
+superiority to the classical teacher.
 
-1. Recover and verify the original teacher, or approve a new teacher specification.
-2. Implement deterministic `training/dataset.py` using the verified teacher; record sample schema, seed behavior, provenance, license, and disjoint train/validation/test splits.
-3. Implement `model/losses.py` against the teacher's waveform/gain/parameter targets; test finite values, gradients, and toy-fit decrease.
-4. Implement `model/blocks.py` against the agreed tensor shapes and task; test forward shapes and gradient flow.
-5. Run a tiny one-epoch acceptance test from a clean checkout, then repeat with the same seed and compare fingerprints, history, and model state under documented deterministic settings.
-6. Only after those gates, publish a benchmark artifact for possible consumption by `Compression-Progress-AI`. No cross-repository score before same-task/same-data/same-metric validation.
+## Repository boundaries
 
-## Current verified status
+`Neural-Compressor-Script` remains the source of truth for the neural
+compressor. `Compression-Progress-AI` remains a separate C++ heuristic/text
+demonstration repository and should consume only a later evaluation artifact
+when task, inputs, corpus, and metric are shared. `HarmoniaCodec-Music` remains
+separate; its semantic components are not part of this compressor contract.
 
-- Entry point relocated to the documented package path on the audit branch.
-- Module initializer added.
-- Missing-module contract is documented separately in `docs/MISSING_MODULE_CONTRACT_2026-11-25.md`.
-- Teacher recovery/design decision remains open.
-- The three functional modules remain absent; no scaffold or fake implementation is accepted.
-- No end-to-end training, reproducibility result, trained checkpoint, or neural-vs-heuristic comparison is claimed.
+## Outstanding owner/review items
+
+- Review and decide whether to merge draft PR #1.
+- Resolve the README All Rights Reserved notice versus full MIT LICENSE policy.
+  No license file was modified in this integration.
+- Decide whether future work requires a real multi-band teacher.
+- Define a rights-cleared real-audio evaluation set and quality metrics before
+  making any performance claims.

@@ -246,19 +246,23 @@ def main() -> None:
     )
 
     print("Generating synthetic dataset ...")
+    eval_n = max(1, args.eval_size)
     ds = SyntheticCompressorDataset(
-        n_samples=args.n_samples,
+        n_samples=args.n_samples + eval_n,
         duration_s=args.duration,
         sample_rate=44100,
         precompute=True,
         seed=args.seed,
     )
+    train_indices = list(range(args.n_samples))
+    val_indices = list(range(args.n_samples, args.n_samples + eval_n))
+    train_ds = Subset(ds, train_indices)
+    val_ds = Subset(ds, val_indices)
 
-    # Seeded generator so shuffle=True is reproducible across runs.
     g = torch.Generator()
     g.manual_seed(args.seed)
     loader = DataLoader(
-        ds,
+        train_ds,
         batch_size=args.batch_size,
         shuffle=True,
         collate_fn=collate,
@@ -273,10 +277,9 @@ def main() -> None:
             "Reduce --batch-size or increase --n-samples."
         )
 
-    # Fixed, unshuffled eval subset for the per-epoch probe-MAE report.
-    eval_n = min(args.eval_size, len(ds))
+    # Validation IDs are outside the training index range.
     eval_loader = DataLoader(
-        Subset(ds, list(range(eval_n))),
+        val_ds,
         batch_size=args.batch_size,
         shuffle=False,
         collate_fn=collate,

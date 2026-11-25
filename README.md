@@ -84,7 +84,7 @@ Flag Default Description
 --stft-every 4 Compute STFT loss every N optimizer steps. Clamped to ≥ 1.
 --grad-clip 5.0 Gradient norm clip. 0 disables clipping.
 --num-workers 0 DataLoader workers for the training loader.
---eval-size 64 Number of samples used for the per-epoch probe-MAE report (capped by --n-samples).
+--eval-size 64 Number of disjoint validation samples used for per-epoch probe MAE and validation curve loss.
 --resume off Resume from <out-dir>/last.pt. Restores model, probe, optimizer, scheduler, epoch, best_curve, and history.
 --no-amp off Disables AMP. AMP only actually activates on CUDA.
 --strict-semantic off Calls `harmonia_neural.semantic_postcheck(model)` only if importable and present; otherwise reports unsupported and skips.
@@ -136,7 +136,7 @@ To tune, edit the constants at the top of the script — both branches stay in s
 2. Build model with build_model(n_bands) and infer latent_dim.
 3. Build ParameterProbe(latent_dim=latent_dim, n_params=4).
 4. Generate SyntheticCompressorDataset with precompute=True.
-5. Build a shuffled training loader (drop_last=True) and a fixed, unshuffled eval subset of --eval-size samples.
+5. Build deterministic train IDs `0..n_samples-1` and disjoint validation IDs `n_samples..n_samples+eval_size-1`; shuffle only the training loader.
 6. Optimizer: AdamW over model.parameters() + probe.parameters() (probe is included in the grad-clip group).
 7. Scheduler: CosineAnnealingLR(T_max=epochs).
 8. Per step:
@@ -146,9 +146,9 @@ To tune, edit the constants at the top of the script — both branches stay in s
    · Backward with GradScaler, clip, step, update.
 9. Per epoch:
    · Average running losses.
-   · Compute probe MAE over the fixed eval subset.
+   · Compute probe MAE and gain-curve loss on the disjoint validation subset.
    · Log a row to history.
-   · Save best.pt if curve improved; always save last.pt.
+   · Save best.pt when validation curve loss improves; always save last.pt.
 
 ---
 

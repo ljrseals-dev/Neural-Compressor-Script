@@ -20,7 +20,7 @@ The modules are adapted rather than copied byte-for-byte to satisfy Neural-Compr
 
 ## Known remaining risks/blockers
 1. **Syntax/runtime verification pending.** None of the files have been executed or tests run in this environment. Integration is source-authored only.
-2. **Validation leakage remains.** Training entrypoint still evaluates the first `eval_size` examples from the same training dataset. Probe MAE is not held-out validation/test quality and best checkpoint selection still uses training curve loss.
+2. **Validation/test protocol remains incomplete.** Training and validation use explicit non-overlapping index ranges from a single deterministic synthetic dataset, and best checkpoint selection now uses validation gain-curve loss. There is no separate test split yet, no formal persisted split manifest, and validation is still limited to the generated synthetic distribution.
 3. **Checkpoint contract.** Safe `weights_only=True` resume may reject legacy checkpoint payloads. No unsafe fallback is retained; legacy conversion must be offline and explicit.
 4. **Teacher alignment is improved but needs tests.** Teacher curve is mapped through the full-rate interpolation and pooled on the same 256-sample frame size. Tests must verify timestamp conventions, tail padding, varying sample rates/durations, and gain target shapes.
 5. **Single-band limitation.** `n_bands != 1` is rejected. No multi-band targets or claims are introduced.
@@ -31,7 +31,7 @@ The modules are adapted rather than copied byte-for-byte to satisfy Neural-Compr
 ## Next integration gates
 - Source-review all files for syntax/API consistency.
 - Add tests for shapes, deterministic samples, collate, aligned gain targets, finite gradients, and toy-fit decrease.
-- Correct explicit train/validation/test ID split and checkpoint selection to use validation metrics.
+- Add a held-out test split and persist split IDs/fingerprints; validate data integrity and confirm checkpoint selection uses the intended validation metric.
 - Run two clean CPU smoke/reproducibility runs with `--n-bands 1`, `--no-amp`, and short duration; then report logs without implying convergence.
 - Review and PR. Do not merge or benchmark without the owner's later direction.
 

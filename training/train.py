@@ -375,18 +375,14 @@ def main() -> None:
             model.eval()
             probe.eval()
             all_pred, all_tgt = [], []
-            val_curve_sum, val_curve_count = 0.0, 0
             with torch.no_grad(), torch.autocast(device.type, enabled=use_amp):
                 for batch in eval_loader:
                     x = batch["x"].to(device, non_blocking=True)
                     p_t = batch["params"].to(device, non_blocking=True)
-                    _, g_pred, _, extras = model(x, return_extras=True)
+                    _, _, _, extras = model(x, return_extras=True)
                     p_pred = probe(extras["latent"])
                     all_pred.append(p_pred.float().cpu())
                     all_tgt.append(p_t.float().cpu())
-                    g_t = batch["g"].to(device, non_blocking=True)
-                    val_curve_sum += float(curve_loss(g_pred.float(), g_t.float()))
-                    val_curve_count += 1
             if all_pred:
                 pred = torch.cat(all_pred, 0)
                 tgt = torch.cat(all_tgt, 0)
@@ -398,13 +394,11 @@ def main() -> None:
                 probe_mae = {name: float("nan") for name in PROBE_PARAM_NAMES}
                 probe_mae["mean"] = float("nan")
 
-            val_curve = val_curve_sum / max(val_curve_count, 1)
             elapsed = time.time() - t0
             row = {
                 "epoch": epoch,
                 "loss": running,
                 "probe_mae": probe_mae,
-                "val_curve": val_curve,
                 "lr": sched.get_last_lr()[0],
                 "time_s": elapsed,
             }
@@ -412,12 +406,12 @@ def main() -> None:
             print(
                 f"Epoch {epoch:3d} | total {running['total']:.4f} "
                 f"curve {running['curve']:.4f} stft {running['stft']:.4f} "
-                f"param {running['param']:.4f} | val curve {val_curve:.4f} | probe MAE {probe_mae['mean']:.3f} "
+                f"param {running['param']:.4f} | probe MAE {probe_mae['mean']:.3f} "
                 f"| {elapsed:.1f}s"
             )
 
-            if val_curve < best_curve:
-                best_curve = val_curve
+            if running["curve"] < best_curve:
+                best_curve = running["curve"]
                 torch.save({
                     "model": model.state_dict(),
                     "probe": probe.state_dict(),

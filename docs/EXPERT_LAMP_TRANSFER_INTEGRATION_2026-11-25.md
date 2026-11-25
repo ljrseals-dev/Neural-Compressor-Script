@@ -30,7 +30,7 @@ The modules are adapted rather than copied byte-for-byte to satisfy Neural-Compr
 
 ## Next integration gates
 - Source-review all files for syntax/API consistency.
-- Add tests for shapes, deterministic samples, collate, aligned gain targets, finite gradients, and toy-fit decrease.
+- Add tests for shapes, deterministic samples, collate, aligned gain targets, finite gradients, and toy-fit decrease. The initial transfer tests cover deterministic sample equivalence, model/probe shapes, finite gradient presence, and the single-band rejection; these tests have not been executed.
 - Add a held-out test split and persist split IDs/fingerprints; validate data integrity and confirm checkpoint selection uses the intended validation metric.
 - Run two clean CPU smoke/reproducibility runs with `--n-bands 1`, `--no-amp`, and short duration; then report logs without implying convergence.
 - Review and PR. Do not merge or benchmark without the owner's later direction.

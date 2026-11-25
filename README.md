@@ -63,8 +63,9 @@ Legacy checkpoints require an explicit trusted offline migration.
 The synthetic dataset is deterministic for a fixed seed and configuration.
 Train, validation, and test sets use distinct `(seed, sample_index)` IDs.
 Best-checkpoint selection uses validation gain-curve loss. The test set is
-evaluated separately after training. Reports record environment, split IDs,
-model/loss configuration, validation selection metric, and test metrics.
+evaluated separately using the validation-selected checkpoint. Reports record
+environment, split IDs, model/loss configuration, selection metric, and test
+metrics.
 
 The current synthetic signal generator and classical teacher are research
 fixtures, not a substitute for rights-cleared real-world audio evaluation.
@@ -78,8 +79,16 @@ silently assumed to be part of this compressor.
 
 ## Verification status
 
-The integration branch contains source and focused tests, but those tests,
-the CPU smoke run, reproducibility comparison, convergence, perceptual quality,
-and neural-versus-classical performance have **not yet been executed or
-established**. See [the integration audit](docs/EXPERT_LAMP_INTEGRATION.md)
-for the correction and acceptance checklist.
+GitHub Actions verified the integration on commit
+`ec3daefb27f4b8d02d3a00731bd77a8db1eaf22e`:
+
+- Python 3.11 module compilation passed.
+- All 6 integration tests passed.
+- One-epoch CPU training smoke passed.
+- A second identical CPU run matched split IDs, histories, model/probe weights,
+  optimizer/scheduler/scaler state, validation metric, and test metrics.
+
+This is a tiny synthetic functional/reproducibility check, not evidence of
+convergence, perceptual quality, generalization to real vocals, or superiority
+over the classical teacher. See
+[the integration report](docs/EXPERT_LAMP_INTEGRATION.md).

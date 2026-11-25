@@ -19,8 +19,9 @@ __all__ = ["CompressorNet", "ParameterProbe", "build_model", "rms_envelope", "ap
 
 def rms_envelope(x: torch.Tensor, win: int = 512) -> torch.Tensor:
     win = max(2, int(win))
-    pad = win // 2
-    xp = F.pad(x, (pad, pad), mode="replicate")
+    left = win // 2
+    right = win - 1 - left
+    xp = F.pad(x, (left, right), mode="replicate")
     return torch.sqrt(F.avg_pool1d(xp * xp, win, stride=1).clamp_min(1e-12))
 
 

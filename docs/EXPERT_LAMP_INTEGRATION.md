@@ -1,7 +1,8 @@
 # Recovered expert-lamp integration
 
-Status: implementation authored on `integration/expert-lamp-recovery-2026-11-25`.
-Runtime tests and training have **not** yet been executed.
+**Status:** source integrated and CI-verified on
+`integration/expert-lamp-recovery-2026-11-25`.
+**Review:** draft PR #1, not merged.
 
 ## Source and target
 
@@ -32,10 +33,12 @@ were recovered from `ljrseals-dev/expert-lamp` and adapted to the original
    STFT=1.0, curve=0.5, parameter=0.2, smoothness=0.05.
 5. Train, validation, and test use distinct deterministic seed/index IDs.
    Best-checkpoint selection uses validation curve loss; test metrics are
-   computed separately after training.
+   computed separately using the selected best checkpoint.
 6. Checkpoints are versioned and loaded only with `weights_only=True`.
    There is no unrestricted pickle fallback. Legacy checkpoints require an
    explicit trusted offline migration; they are not silently loaded.
+7. RMS envelope padding is asymmetric for even window lengths so the envelope
+   has exactly the same sample length as the input waveform.
 
 ## Semantic hook
 
@@ -44,14 +47,34 @@ were recovered from `ljrseals-dev/expert-lamp` and adapted to the original
 HarmoniaCodec-Music source. Harmonia semantic components are not silently
 substituted into the compressor.
 
-## Verification still required
+## Verification completed
 
-- Run `python -m py_compile model/blocks.py model/losses.py training/dataset.py training/train.py`.
-- Run `pytest -q tests/test_recovered_integration.py`.
-- Run a CPU smoke: `python -m training.train --epochs 1 --n-samples 8 --n-val 4 --n-test 4 --batch-size 2 --duration 0.25 --no-amp --device cpu --out-dir /tmp/nc-smoke`.
-- Repeat with the same seed into a clean output directory and compare split IDs,
-  histories, and state dictionaries.
-- Record actual Python/PyTorch versions and runtime outcomes before acceptance.
+GitHub Actions on head commit
+`ec3daefb27f4b8d02d3a00731bd77a8db1eaf22e` completed successfully:
 
-This document records authored source, not successful execution, convergence,
-perceptual quality, or a neural-versus-classical performance result.
+- `python -m py_compile model/blocks.py model/losses.py training/dataset.py training/train.py`: passed.
+- `pytest -q tests/test_recovered_integration.py`: **6 passed**.
+- CPU one-epoch training smoke: passed.
+- Second identical CPU smoke: passed.
+- Reproducibility comparison: split IDs, histories, model/probe states,
+  optimizer/scheduler/scaler states, selected validation metric, and test
+  metrics matched exactly.
+
+Smoke configuration: 8 training samples, 4 validation samples, 4 test samples,
+0.25-second clips, batch size 2, CPU, no AMP, deterministic mode.
+
+The run produced a finite validation/test report and a usable checkpoint. These
+numbers are smoke evidence only; they are not a convergence, perceptual-quality,
+or neural-versus-classical performance benchmark.
+
+## Remaining work
+
+- Run longer training with larger synthetic datasets and inspect learning
+  curves for instability or underfitting.
+- Evaluate on rights-cleared real audio and define perceptual/technical metrics.
+- Establish whether multi-band supervision is needed; the current model
+  deliberately supports one band only.
+- Resolve the README All Rights Reserved notice versus the full MIT LICENSE
+  policy under the repository owner's direction. No license files were changed.
+- Keep the PR draft until the owner reviews the implementation and decides
+  whether to merge it.

@@ -82,7 +82,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--n-samples", type=int, default=256)
     p.add_argument("--duration", type=float, default=1.5)
     p.add_argument("--lr", type=float, default=2e-4)
-    p.add_argument("--n-bands", type=int, default=4)
+    p.add_argument("--n-bands", type=int, default=1, help="Transferred expert-lamp teacher is single-band")
     p.add_argument("--latent-dim", type=int, default=None,
                    help="width of extras['latent']; inferred if omitted")
     p.add_argument("--device", type=str,
@@ -160,10 +160,8 @@ def _try_resume(path: Path, model: nn.Module, probe: nn.Module,
     if not path.exists():
         print(f"  [resume] no checkpoint at {path}; starting fresh")
         return 1, float("inf"), []
-    try:
-        ckpt = torch.load(path, map_location="cpu", weights_only=True)
-    except (TypeError, RuntimeError):
-        ckpt = torch.load(path, map_location="cpu", weights_only=False)
+    # Safe deserialization only; legacy pickle migration must be explicit/offline.
+    ckpt = torch.load(path, map_location="cpu", weights_only=True)
     model.load_state_dict(ckpt["model"])
     probe.load_state_dict(ckpt["probe"])
     if "optim" in ckpt:
@@ -206,6 +204,9 @@ def _strict_semantic_check(model: nn.Module) -> None:
         return
     if not hasattr(model, "sem"):
         print("  [strict-semantic] model has no .sem attribute; skipping")
+        return
+    if not callable(getattr(hn, "semantic_postcheck", None)):
+        print("  [strict-semantic] semantic_postcheck missing; unsupported integration; skipping")
         return
     hn.semantic_postcheck(model)
     print("  [strict-semantic] OK")

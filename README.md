@@ -15,7 +15,7 @@ Training harness for the neural compressor. A differentiable classical compresso
 
 1. Overview
 
-The script trains two modules jointly:
+The script trains a gain-curve CNN and a separate parameter probe. The transferred expert-lamp teacher is single-band; set `--n-bands 1` (the default).
 
 Component Role
 model.blocks.build_model(n_bands) Produces gain curves g_p, gain bands g_bands, and a latent embedding from the input audio.
@@ -76,7 +76,7 @@ Flag Default Description
 --n-samples 256 Number of synthetic samples to generate.
 --duration 1.5 Duration of each generated clip (seconds).
 --lr 2e-4 Peak learning rate (AdamW, weight decay 1e-4).
---n-bands 4 Number of gain bands produced by the model.
+--n-bands 1 (single-band teacher) Transferred teacher supports one band only; values other than 1 are rejected.
 --latent-dim inferred Width of extras["latent"]. Inferred from the model (via attributes, or a dry-run forward pass) if omitted.
 --device auto cuda or cpu.
 --out-dir checkpoints/ Where to write last.pt, best.pt, train_report.json.
@@ -87,7 +87,7 @@ Flag Default Description
 --eval-size 64 Number of samples used for the per-epoch probe-MAE report (capped by --n-samples).
 --resume off Resume from <out-dir>/last.pt. Restores model, probe, optimizer, scheduler, epoch, best_curve, and history.
 --no-amp off Disables AMP. AMP only actually activates on CUDA.
---strict-semantic off Calls harmonia_neural.semantic_postcheck(model) after model build, if the package is importable. Silently skipped otherwise.
+--strict-semantic off Calls `harmonia_neural.semantic_postcheck(model)` only if importable and present; otherwise reports unsupported and skips.
 
 ---
 

@@ -211,8 +211,14 @@ def main(argv=None):
             best = val_metrics["curve"]
             save_checkpoint(args.out_dir/"best.pt",model,probe,optimizer,scheduler,scaler,epoch,best,history,args)
         save_checkpoint(args.out_dir/"last.pt",model,probe,optimizer,scheduler,scaler,epoch,best,history,args)
+    # Report test metrics for the checkpoint selected on validation, not the final epoch.
+    best_checkpoint = safe_torch_load(args.out_dir/"best.pt")
+    model.load_state_dict(best_checkpoint["model"], strict=True)
+    probe.load_state_dict(best_checkpoint["probe"], strict=True)
+    selected_epoch = int(best_checkpoint["epoch"]) + 1
     test_metrics = evaluate(model,probe,test_loader,criterion,device)
-    report = {"environment":{"python":platform.python_version(),"torch":torch.__version__,
+    report = {"selected_checkpoint_epoch": selected_epoch,
+              "environment":{"python":platform.python_version(),"torch":torch.__version__,
              "numpy":np.__version__,"platform":platform.platform(),"device":str(device),
              "cuda_available":torch.cuda.is_available()},
              "seed":args.seed,"dataset_contract":DATASET_CONTRACT_VERSION,

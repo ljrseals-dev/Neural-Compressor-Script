@@ -48,9 +48,9 @@ def amp_context(device, enabled):
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--out-dir", type=Path, default=ROOT / "checkpoints")
-    p.add_argument("--n-samples", type=int, default=4096)
-    p.add_argument("--n-val", type=int, default=256)
-    p.add_argument("--n-test", type=int, default=256)
+    p.add_argument("--n-samples", type=int, default=256)
+    p.add_argument("--n-val", type=int, default=64)
+    p.add_argument("--n-test", type=int, default=64)
     p.add_argument("--duration", type=float, default=1.5)
     p.add_argument("--sample-rate", type=int, default=44100)
     p.add_argument("--batch-size", type=int, default=8)

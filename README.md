@@ -67,6 +67,10 @@ evaluated separately using the validation-selected checkpoint. Reports record
 environment, split IDs, model/loss configuration, selection metric, and test
 metrics.
 
+The default precomputed split sizes are 256 training, 64 validation, and 64
+ test samples. Increase them deliberately after checking available memory; the
+ dataset caches waveforms and teacher targets in memory.
+
 The current synthetic signal generator and classical teacher are research
 fixtures, not a substitute for rights-cleared real-world audio evaluation.
 

@@ -3,10 +3,10 @@ Date: 2026-11-25
 Status: specification only; the three implementations are absent.
 
 ## Ground rules
-Contracts are derived from the tracked root-level `training.train.py` and README. Dimensions or algorithms not established by those call sites are marked unknown, not guessed. No stubs or fake tensors are added. Any future temporary stub must be labeled **non-reproducible scaffold** and raise `NotImplementedError` on every functional call.
+Contracts are derived from `training/train.py` on this audit branch and the README. Dimensions or algorithms not established by those call sites are marked unknown, not guessed. No stubs or fake tensors are added. Any future temporary stub must be labeled **non-reproducible scaffold** and raise `NotImplementedError` on every functional call.
 
 ## Launch-path blocker
-The tracked entry point is root-level `training.train.py`, while README and its own usage examples invoke `python -m training.train`. These do not refer to the same path. Also, `Path(__file__).resolve().parents[1]` from a root-level script resolves above the repository. Move it to `training/train.py` and correct ROOT, or consistently change invocation and root logic before testing.
+The original root-level `training.train.py` did not match the README invocation `python -m training.train`, and its `parents[1]` ROOT expression resolved above the repository. On this audit branch the script has been relocated to `training/train.py`, `training/__init__.py` has been added, and `ROOT = Path(__file__).resolve().parents[1]` now resolves to the repository root. The relocation is source-verified; the launch command has not been executed because required modules are still absent. The inspected source has the `print(model.count_parameters())` and `if args.strict_semantic:` statements on separate lines; the suspected syntax error from the pasted transition is not present in the repository file.
 
 ## 1. model/blocks.py
 
@@ -97,14 +97,24 @@ Required dataset behavior:
 
 Provenance: only synthetic teacher-generated compressor data is stated in README. The actual teacher, parameter ranges/distribution, waveform generator, schema version, and license are not in the available source. These must be documented from the implementation; do not claim a license or no-external-assets status without checking.
 
-Splits: current script creates one dataset, shuffles training loader, then evaluates on the first `min(eval_size,len(ds))` examples. It does not create disjoint train/validation/test sets. Add deterministic, disjoint split IDs and a split seed before treating probe MAE as held-out validation/test performance.
+Splits: current script creates one dataset, shuffles the training loader, then evaluates on `Subset(ds, list(range(eval_n)))`, where `eval_n = min(args.eval_size, len(ds))`. This is the first N examples of the same dataset used for training; it does not create disjoint train/validation/test sets. Therefore the reported probe MAE is not held-out validation/test performance. Add deterministic, disjoint split IDs and a split seed before treating probe MAE as held-out validation/test performance.
+
+Checkpoint selection: `best.pt` is selected when the epoch's mean training `curve` loss improves (`running["curve"] < best_curve`). It is not selected using held-out validation performance. Until a disjoint validation split exists, “best” means best observed training-curve fit, not best generalization.
 
 The seven public-domain books in the host repo are text corpora, not audio training inputs; they cannot be substituted for this dataset or used to claim a fair audio comparison.
 
 ### Unit tests required
 Length equals n_samples; sample keys and tensor shapes/dtypes are stable; all values finite; same seed/config yields identical samples; collate preserves order and batches all keys; a batch passes through model and probe; deterministic train/val/test splits have disjoint IDs.
 
-## 4. Acceptance gate
+## 4. Additional training-script audit findings
+
+### Resume checkpoint loading
+`_try_resume` first calls `torch.load(path, map_location="cpu", weights_only=True)` and retries with `weights_only=False` only for `TypeError` or `RuntimeError`. A weights-only load can fail with an unpickling exception outside that catch tuple (for example, `pickle.UnpicklingError`, depending on the serialized content and PyTorch version). In that case `--resume` can fail before the fallback is reached. Confirm the exact exception against the supported PyTorch versions and handle it deliberately. Only use `weights_only=False` for checkpoints from a trusted source because it enables pickle deserialization.
+
+### Syntax check
+The repository version inspected on this branch has the model-parameter `print(...)` and following `if args.strict_semantic:` on separate lines. The syntax-error concern raised from the two-part paste is not confirmed in the tracked file. Still run `python -m py_compile training/train.py` when the environment is available; this has not been run as part of this source audit.
+
+## 5. Acceptance gate
 Do not claim acceptance until:
 1. Fix entry-point filename/module path and ROOT.
 2. Restore real implementations (not scaffolds).

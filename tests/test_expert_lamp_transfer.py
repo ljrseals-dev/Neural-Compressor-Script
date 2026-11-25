@@ -31,7 +31,7 @@ def test_collate_and_model_four_return_contract():
     assert bands.shape==(2,1,1,44)
     assert p.shape==batch["params"].shape
     assert "latent" in extras
-    assert torch.isfinite(y).all() and torch.isfinite(g).all() and torch.isfinite(p).all()()
+    assert torch.isfinite(y).all() and torch.isfinite(g).all() and torch.isfinite(p).all()
 
 def test_loss_gradients_reach_model_and_probe():
     ds=SyntheticCompressorDataset(n_samples=2,duration_s=0.25,seed=11)

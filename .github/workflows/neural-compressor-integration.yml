@@ -28,9 +28,43 @@ jobs:
           python -m py_compile model/blocks.py model/losses.py training/dataset.py training/train.py
       - name: Run integration tests
         run: python -m pytest -q tests/test_recovered_integration.py
-      - name: Run one-epoch CPU smoke
+      - name: Run repeatable one-epoch CPU smoke twice
         run: |
           python -m training.train \
             --epochs 1 --n-samples 8 --n-val 4 --n-test 4 \
             --batch-size 2 --duration 0.25 --no-amp --device cpu \
-            --deterministic --out-dir "${{ runner.temp }}/nc-smoke"
+            --deterministic --out-dir "${{ runner.temp }}/nc-smoke-a"
+          python -m training.train \
+            --epochs 1 --n-samples 8 --n-val 4 --n-test 4 \
+            --batch-size 2 --duration 0.25 --no-amp --device cpu \
+            --deterministic --out-dir "${{ runner.temp }}/nc-smoke-b"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import torch
+
+          root = Path("${{ runner.temp }}")
+          a, b = root / "nc-smoke-a", root / "nc-smoke-b"
+
+          def same(x, y):
+              if torch.is_tensor(x):
+                  return torch.equal(x, y)
+              if isinstance(x, dict):
+                  return x.keys() == y.keys() and all(same(x[k], y[k]) for k in x)
+              if isinstance(x, (list, tuple)):
+                  return len(x) == len(y) and all(same(i, j) for i, j in zip(x, y))
+              return x == y
+
+          for name in ("best.pt", "last.pt"):
+              ca = torch.load(a / name, map_location="cpu", weights_only=True)
+              cb = torch.load(b / name, map_location="cpu", weights_only=True)
+              for key in ("config", "model", "probe", "optimizer", "scheduler",
+                          "scaler", "epoch", "best_val_curve", "history"):
+                  assert same(ca[key], cb[key]), f"{name}: mismatch in {key}"
+          ra = json.loads((a / "train_report.json").read_text())
+          rb = json.loads((b / "train_report.json").read_text())
+          for key in ("seed", "dataset_contract", "split_ids", "model",
+                      "loss_weights", "best_validation_curve", "test_metrics", "history"):
+              assert ra[key] == rb[key], f"report mismatch in {key}"
+          print("reproducibility smoke: split IDs, histories, model/probe and optimizer state match")
+          PY

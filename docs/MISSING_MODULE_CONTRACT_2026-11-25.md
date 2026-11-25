@@ -1,6 +1,13 @@
-# Missing Module Contracts — Evidence-Based Audit
-Date: 2026-11-25
-Status: specification only; the three implementations are absent.
+# Missing Module Contracts — Historical Pre-Recovery Audit
+
+**Status:** this document records the pre-recovery interface investigation.
+The modules described below have since been recovered and adapted from
+`expert-lamp` on branch
+`integration/expert-lamp-recovery-2026-11-25`. See
+`docs/EXPERT_LAMP_INTEGRATION.md` for the current implementation and verified
+CI results. This historical contract is retained to show what the original
+training entry point required; its statements that the modules are absent are
+not current repository status.
 
 ## Ground rules
 Contracts are derived from `training/train.py` on this audit branch and the README. Dimensions or algorithms not established by those call sites are marked unknown, not guessed. No stubs or fake tensors are added. Any future temporary stub must be labeled **non-reproducible scaffold** and raise `NotImplementedError` on every functional call.

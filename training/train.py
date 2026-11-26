@@ -16,7 +16,7 @@ from model.losses import (W_CURVE, W_PARAM, W_SMOOTH, W_STFT, CompressorLoss,
                           curve_loss, param_loss, smoothness_loss)
 from training.dataset import SyntheticCompressorDataset, collate
 
-CHECKPOINT_FORMAT_VERSION = 1
+CHECKPOINT_FORMAT_VERSION = 2
 DATASET_CONTRACT_VERSION = "expert-lamp-teacher-v1-aligned-frame256"
 FRAME_SIZE = 256
 
@@ -127,18 +127,22 @@ def config_for(args):
             "loss_weights": {"stft": W_STFT, "curve": W_CURVE, "param": W_PARAM, "smooth": W_SMOOTH}}
 
 
-def save_checkpoint(path, model, probe, optimizer, scheduler, scaler, epoch, best, history, args):
+def save_checkpoint(path, model, probe, optimizer, scheduler, scaler, epoch, best, history, args,
+                    best_model_state, best_probe_state, best_epoch):
     torch.save({"format_version": CHECKPOINT_FORMAT_VERSION, "config": config_for(args),
                 "model": model.state_dict(), "probe": probe.state_dict(),
                 "optimizer": optimizer.state_dict(), "scheduler": scheduler.state_dict(),
                 "scaler": scaler.state_dict(), "epoch": int(epoch),
-                "best_val_curve": float(best), "history": history}, path)
+                "best_val_curve": float(best), "history": history,
+                "best_model": best_model_state, "best_probe": best_probe_state,
+                "best_epoch": int(best_epoch)}, path)
 
 
 def load_checkpoint(path, model, probe, optimizer, scheduler, scaler, args):
     ck = safe_torch_load(path)
     required = {"format_version","config","model","probe","optimizer","scheduler",
-                "scaler","epoch","best_val_curve","history"}
+                "scaler","epoch","best_val_curve","history",
+                "best_model","best_probe","best_epoch"}
     if not isinstance(ck, dict) or required - set(ck):
         raise RuntimeError(f"checkpoint missing keys: {sorted(required - set(ck)) if isinstance(ck, dict) else sorted(required)}")
     if ck["format_version"] != CHECKPOINT_FORMAT_VERSION: raise RuntimeError("unsupported checkpoint format")
@@ -147,7 +151,10 @@ def load_checkpoint(path, model, probe, optimizer, scheduler, scaler, args):
     optimizer.load_state_dict(ck["optimizer"]); scheduler.load_state_dict(ck["scheduler"])
     scaler.load_state_dict(ck["scaler"])
     if not isinstance(ck["history"], list): raise RuntimeError("checkpoint history must be a list")
-    return int(ck["epoch"]) + 1, float(ck["best_val_curve"]), ck["history"]
+    if not isinstance(ck["best_model"], dict) or not isinstance(ck["best_probe"], dict):
+        raise RuntimeError("checkpoint best-model state is invalid")
+    return (int(ck["epoch"]) + 1, float(ck["best_val_curve"]), ck["history"],
+            ck["best_model"], ck["best_probe"], int(ck["best_epoch"]))
 
 
 def main(argv=None):
@@ -182,8 +189,11 @@ def main(argv=None):
                "finite":bool(torch.isfinite(yp).all())})
         return 0
     start,best,history = 0,math.inf,[]
+    best_model_state = best_probe_state = None
+    best_epoch = -1
     if args.resume is not None:
-        start,best,history = load_checkpoint(args.resume,model,probe,optimizer,scheduler,scaler,args)
+        (start,best,history,best_model_state,best_probe_state,best_epoch) = load_checkpoint(
+            args.resume,model,probe,optimizer,scheduler,scaler,args)
     started = time.time()
     for epoch in range(start,args.epochs):
         model.train(); probe.train(); sums,counts = {},{}
@@ -211,13 +221,26 @@ def main(argv=None):
                         "lr":scheduler.get_last_lr()[0]})
         if val_metrics["curve"] < best:
             best = val_metrics["curve"]
-            save_checkpoint(args.out_dir/"best.pt",model,probe,optimizer,scheduler,scaler,epoch,best,history,args)
-        save_checkpoint(args.out_dir/"last.pt",model,probe,optimizer,scheduler,scaler,epoch,best,history,args)
+            best_epoch = epoch
+            best_model_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            best_probe_state = {k: v.detach().cpu().clone() for k, v in probe.state_dict().items()}
+            save_checkpoint(args.out_dir/"best.pt",model,probe,optimizer,scheduler,scaler,epoch,best,history,args,
+                            best_model_state,best_probe_state,best_epoch)
+        if best_model_state is None or best_probe_state is None:
+            raise RuntimeError("no valid best checkpoint state exists")
+        save_checkpoint(args.out_dir/"last.pt",model,probe,optimizer,scheduler,scaler,epoch,best,history,args,
+                        best_model_state,best_probe_state,best_epoch)
     # Report test metrics for the checkpoint selected on validation, not the final epoch.
-    best_checkpoint = safe_torch_load(args.out_dir/"best.pt")
-    model.load_state_dict(best_checkpoint["model"], strict=True)
-    probe.load_state_dict(best_checkpoint["probe"], strict=True)
-    selected_epoch = int(best_checkpoint["epoch"]) + 1
+    if not (args.out_dir/"best.pt").exists():
+        # A resume may target a fresh output directory and produce no new best.
+        # Reconstitute best.pt from the best states carried by last.pt.
+        model.load_state_dict(best_model_state, strict=True)
+        probe.load_state_dict(best_probe_state, strict=True)
+        save_checkpoint(args.out_dir/"best.pt",model,probe,optimizer,scheduler,scaler,
+                        best_epoch,best,history,args,best_model_state,best_probe_state,best_epoch)
+    model.load_state_dict(best_model_state, strict=True)
+    probe.load_state_dict(best_probe_state, strict=True)
+    selected_epoch = best_epoch + 1
     test_metrics = evaluate(model,probe,test_loader,criterion,device)
     report = {"selected_checkpoint_epoch": selected_epoch,
               "environment":{"python":platform.python_version(),"torch":torch.__version__,
